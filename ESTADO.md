@@ -10,9 +10,9 @@
 ---
 
 ## Resumen de Progreso Actual
-- **Fase Actual:** Fase 4 (Docker Endurecido, CI/CD, Documentación) — **EN PROGRESO**
-- **Último Commit Verificado:** 65d543a (Fase 3)
-- **Estado del Verificador:** APTO (Fase 3) — Pendiente Fase 4
+- **Fase Actual:** **TODAS LAS FASES COMPLETADAS** ✅
+- **Último Commit Verificado:** 08abadf (Fase 4)
+- **Estado del Verificador:** APTO (Fase 4)
 - **Bloqueos / Dudas para Santiago:** Ninguno
 
 ---
@@ -62,10 +62,10 @@
 - [x] **3.3. [GATE]** Invocar al subagente **`verificador`** sobre la Fase 3. Solo avanzar si devuelve **APTO**. Veredicto: **APTO** — 25/25 tests, 11/12 checks Playwright PASS (2 "fallos" = simulación activa, comportamiento correcto), 0 leaks internos, 0 CDNs, fidelidad visual completa.
 
 ### FASE 4: Docker Endurecido, CI/CD, Documentación de Portafolio e Integración
-- [ ] **4.1.** Crear `Dockerfile` multi-etapa (SDK 10 -> Runtime Alpine non-root `1654`), `docker-compose.yml` endurecido (`read_only: true`, `cap_drop: ALL`, `mem_limit: 192m`, puerto `127.0.0.1:5002:8080`, red `arch-net`) y `.env.example`.
-- [ ] **4.2.** Crear `.github/workflows/ci-cd.yml` (Build, Test, Trivy Security Scan y publicación en `ghcr.io/aaaactis/pulso:latest`).
-- [ ] **4.3.** Redactar los 2 ADRs en `docs/adr/` y el `README.md` de nivel portafolio (diagrama Mermaid, qué probar en 60 segundos, decisiones técnicas y tabla de modelo de amenazas OWASP API Top 10).
-- [ ] **4.4. [GATE FINAL]** Invocar al subagente **`verificador`** sobre el proyecto completo.
+- [x] **4.1.** Crear `Dockerfile` multi-etapa (SDK 10 -> Runtime Alpine non-root `1654`), `docker-compose.yml` endurecido (`read_only: true`, `cap_drop: ALL`, `mem_limit: 192m`, puerto `127.0.0.1:5002:8080`, red `arch-net`) y `.env.example`.
+- [x] **4.2.** Crear `.github/workflows/ci-cd.yml` (Build, Test, Trivy Security Scan y publicación en `ghcr.io/aaaactis/pulso:latest`).
+- [x] **4.3.** Redactar los 3 ADRs en `docs/adr/` y el `README.md` de nivel portafolio (diagrama Mermaid, qué probar en 60 segundos, decisiones técnicas y tabla de modelo de amenazas OWASP API Top 10).
+- [x] **4.4. [GATE FINAL]** Invocar al subagente **`verificador`** sobre el proyecto completo. Veredicto: **APTO** — 0 warnings, 25/25 tests, 2/2 mutaciones detectadas, 0 leaks internos, 0 CDNs, hardening completo, CI/CD + GHCR, ADRs + README completos.
 - [ ] **4.5.** *(Solo con confirmación explícita de Santiago)* Desplegar en la Arch, verificar presupuesto de RAM (`docker stats`) y actualizar `~/portfolio/index.html` para que consuma `/api/v1/summary` en vivo y muestre la tarjeta de Pulso.
 
 ---
@@ -79,3 +79,4 @@
 | 14/11/2026 | Fase 1 | 538b965 | APTO | Fase 1 completa: Motor Doble Vía (MonitorWorker + LabStateService), Polly resilience, HybridCache, 14 tests Fase 1. Próximo: Fase 2 (Endpoints Minimal API, CORS, Rate Limit, SSE). |
 | 14/11/2026 | Fase 2 | 48b72ac | APTO | Fase 2 completa: Endpoints Minimal API (/summary, /services, /stream SSE, /lab/simulate-failure, /health), Seguridad (CORS estricto, Rate Limiting por CF-Connecting-IP, Headers, ProblemDetails), 5 tests integración + 20 tests unitarios = 25/25 verde. Próximo: Fase 3 (Frontend Dark Telemetry Glass). |
 | 14/11/2026 | Fase 3 | 65d543a | APTO | Fase 3 completa: Frontend "Dark Telemetry Glass" (wwwroot/index.html 1000+ líneas, CSS variables exactas, 5 servicios, 24 barras uptime, gráfico SVG p50/p95, gauge semicircular, hit ratio, stale badge, SIMULAR CAÍDA 45s, endpoints panel, modales Consola/Arquitectura, tabular-nums, prefers-reduced-motion, ARIA, 0 CDNs, 0 leaks internos). Verificador: 25/25 tests, 11/12 Playwright PASS, mutación 2/3 detectada (gap menor en CircuitBreakerState SSE). Próximo: Fase 4 (Docker, CI/CD, Documentación). |
+| 14/11/2026 | Fase 4 | 08abadf | APTO | Fase 4 completa: Docker multi-etapa (Alpine non-root 1654, read_only, cap_drop ALL, healthcheck), docker-compose.prod.yml endurecido (mem_limit 192m, cpus 0.5, arch-net, 127.0.0.1:5002:8080), CI/CD GitHub Actions (Build, Test, CodeQL, Trivy fs+imagen, push GHCR aaaactis/pulso:latest), 3 ADRs (SQLite+HybridCache, No Broker, Dual-Check), README portafolio (Mermaid, 60s test plan, OWASP API Top 10), NuGet NU1903 fix (SQLitePCLRaw v2.1.12 explícito). Verificador: 0 warnings, 25/25 tests, 2/2 mutaciones detectadas, 0 leaks internos, 0 CDNs. **PROYECTO COMPLETO**. |
