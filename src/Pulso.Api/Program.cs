@@ -296,9 +296,19 @@ app.MapGet("/api/v1/services", async (HttpContext ctx, HybridCache cache, Cancel
                 publicStatus = Convert.ToInt64(latest.public_ok) == 1 ? "UP" : "DOWN";
             }
 
+            var displayName = id switch
+            {
+                "nutrition-app" => "Nutrition App",
+                "n8n-automation" => "n8n Automation",
+                "santiago-portfolio" => "Santiago Portfolio",
+                "api-gateway" => "API Gateway",
+                "demo-service" => "Demo Service",
+                _ => id.Split('-').Select(w => char.ToUpper(w[0]) + w[1..]).Aggregate((a, b) => a + " " + b)
+            };
+
             services.Add(new ServiceDto(
                 Id: id,
-                Name: id.Split('-').Select(w => char.ToUpper(w[0]) + w[1..]).Aggregate((a, b) => a + " " + b),
+                Name: displayName,
                 InternalStatus: internalStatus,
                 PublicStatus: publicStatus,
                 Uptime24h: uptime24h,
@@ -345,6 +355,131 @@ app.MapGet("/api/v1/stream", async (HttpContext ctx, HybridCache cache, Cancella
 
     var labState = ctx.RequestServices.GetRequiredService<LabStateService>();
     var lastPush = DateTimeOffset.MinValue;
+
+    // Send initial event immediately
+    try
+    {
+        var initialSummary = await cache.GetOrCreateAsync("summary", async _ =>
+        {
+            var uptime24h = 0.0;
+            var uptime7d = 0.0;
+            var serviceIds = new[] { "nutrition-app", "n8n-automation", "santiago-portfolio", "api-gateway", "demo-service" };
+
+            foreach (var id in serviceIds)
+            {
+                uptime24h += await Database.CalculateUptime24hAsync(id, ct);
+                uptime7d += await Database.CalculateUptime7dAsync(id, ct);
+            }
+
+            uptime24h = Math.Round(uptime24h / serviceIds.Length, 2);
+            uptime7d = Math.Round(uptime7d / serviceIds.Length, 2);
+
+            return new SummaryDto(
+                GlobalStatus: uptime24h >= 99.5 ? "healthy" : uptime24h >= 95 ? "degraded" : "critical",
+                GlobalLabel: uptime24h >= 99.5 ? "Sistemas Operativos" : uptime24h >= 95 ? "Degradado" : "Crítico",
+                Uptime24h: uptime24h,
+                Uptime7d: uptime7d,
+                CacheHitRatio: labState.HitRatioPercent,
+                SimulationActive: labState.IsFailureSimulated(),
+                TimestampUtc: DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            );
+        }, cancellationToken: ct);
+
+        var initialServices = await cache.GetOrCreateAsync("services", async _ =>
+        {
+            var serviceIds = new[] { "nutrition-app", "n8n-automation", "santiago-portfolio", "api-gateway", "demo-service" };
+            var services = new List<ServiceDto>();
+
+            foreach (var id in serviceIds)
+            {
+                var uptime24h = await Database.CalculateUptime24hAsync(id, ct);
+                var bars24h = await Database.GetBars24hAsync(id, ct);
+
+                await using var conn = new Microsoft.Data.Sqlite.SqliteConnection(Database.GetConnectionString());
+                await conn.OpenAsync(ct);
+                var latest = await conn.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT status_label, internal_ok, public_ok FROM check_results WHERE service_id = @id ORDER BY checked_at_utc DESC LIMIT 1;",
+                    new { id });
+
+                string internalStatus = "DOWN";
+                string publicStatus = "DOWN";
+
+                if (latest != null)
+                {
+                    internalStatus = Convert.ToInt64(latest.internal_ok) == 1 ? "UP" : "DOWN";
+                    publicStatus = Convert.ToInt64(latest.public_ok) == 1 ? "UP" : "DOWN";
+                }
+
+                var displayName = id switch
+                {
+                    "nutrition-app" => "Nutrition App",
+                    "n8n-automation" => "n8n Automation",
+                    "santiago-portfolio" => "Santiago Portfolio",
+                    "api-gateway" => "API Gateway",
+                    "demo-service" => "Demo Service",
+                    _ => id.Split('-').Select(w => char.ToUpper(w[0]) + w[1..]).Aggregate((a, b) => a + " " + b)
+                };
+
+                services.Add(new ServiceDto(
+                    Id: id,
+                    Name: displayName,
+                    InternalStatus: internalStatus,
+                    PublicStatus: publicStatus,
+                    Uptime24h: uptime24h,
+                    Bars24h: bars24h
+                ));
+            }
+
+            var (p50, p95) = await Database.GetLatencyPercentilesAsync(ct);
+
+            return new ServicesResponseDto(
+                CacheStatus: "HIT",
+                StaleWhileRevalidate: labState.StaleWhileRevalidateActive,
+                Services: services,
+                Lab: new LabDto(
+                    LatencySeries: new List<LatencyPoint> { new(p50, p95) },
+                    CurrentP50Ms: p50,
+                    CurrentP95Ms: p95,
+                    CacheAvailabilityPercent: 100.0,
+                    HitRatioPercent: labState.HitRatioPercent,
+                    StaleWhileRevalidateActive: labState.StaleWhileRevalidateActive,
+                    CircuitBreakerState: labState.IsCircuitBreakerOpen ? "OPEN" : "CLOSED",
+                    SimulationActive: labState.IsFailureSimulated(),
+                    SimulationRemainingSeconds: labState.SimulateFailureUntil.HasValue
+                        ? (int)(labState.SimulateFailureUntil.Value - DateTimeOffset.UtcNow).TotalSeconds
+                        : 0
+                )
+            );
+        }, cancellationToken: ct);
+
+        var (ip50, ip95) = await Database.GetLatencyPercentilesAsync(ct);
+        var initialLab = new LabDto(
+            LatencySeries: new List<LatencyPoint> { new(ip50, ip95) },
+            CurrentP50Ms: ip50,
+            CurrentP95Ms: ip95,
+            CacheAvailabilityPercent: 100.0,
+            HitRatioPercent: labState.HitRatioPercent,
+            StaleWhileRevalidateActive: labState.StaleWhileRevalidateActive,
+            CircuitBreakerState: labState.IsCircuitBreakerOpen ? "OPEN" : "CLOSED",
+            SimulationActive: labState.IsFailureSimulated(),
+            SimulationRemainingSeconds: labState.SimulateFailureUntil.HasValue
+                ? (int)(labState.SimulateFailureUntil.Value - DateTimeOffset.UtcNow).TotalSeconds
+                : 0
+        );
+
+        var initialPulse = new PulseEvent(initialSummary, initialServices, initialLab);
+        var initialJson = System.Text.Json.JsonSerializer.Serialize(initialPulse, new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        });
+
+        await ctx.Response.WriteAsync($"event: pulse\ndata: {initialJson}\n\n", ct);
+        await ctx.Response.Body.FlushAsync(ct);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"SSE initial event error: {ex.Message}");
+    }
 
     try
     {
@@ -399,13 +534,23 @@ app.MapGet("/api/v1/stream", async (HttpContext ctx, HybridCache cache, Cancella
 
                     if (latest != null)
                     {
-                        internalStatus = (bool)latest.internal_ok ? "UP" : "DOWN";
-                        publicStatus = (bool)latest.public_ok ? "UP" : "DOWN";
+                        internalStatus = Convert.ToInt64(latest.internal_ok) == 1 ? "UP" : "DOWN";
+                        publicStatus = Convert.ToInt64(latest.public_ok) == 1 ? "UP" : "DOWN";
                     }
+
+                    var displayName = id switch
+                    {
+                        "nutrition-app" => "Nutrition App",
+                        "n8n-automation" => "n8n Automation",
+                        "santiago-portfolio" => "Santiago Portfolio",
+                        "api-gateway" => "API Gateway",
+                        "demo-service" => "Demo Service",
+                        _ => id.Split('-').Select(w => char.ToUpper(w[0]) + w[1..]).Aggregate((a, b) => a + " " + b)
+                    };
 
                     services.Add(new ServiceDto(
                         Id: id,
-                        Name: id.Split('-').Select(w => char.ToUpper(w[0]) + w[1..]).Aggregate((a, b) => a + " " + b),
+                        Name: displayName,
                         InternalStatus: internalStatus,
                         PublicStatus: publicStatus,
                         Uptime24h: uptime24h,
@@ -457,8 +602,16 @@ app.MapGet("/api/v1/stream", async (HttpContext ctx, HybridCache cache, Cancella
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
             });
 
-            await ctx.Response.WriteAsync($"data: {json}\n\n", ct);
-            await ctx.Response.Body.FlushAsync(ct);
+            try
+            {
+                await ctx.Response.WriteAsync($"event: pulse\ndata: {json}\n\n", ct);
+                await ctx.Response.Body.FlushAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SSE write error: {ex.Message}");
+                break;
+            }
 
             // Push inmediato si cambió simulación
             if (lab.SimulationActive && lastPush != DateTimeOffset.MinValue)
@@ -470,9 +623,9 @@ app.MapGet("/api/v1/stream", async (HttpContext ctx, HybridCache cache, Cancella
         }
     }
     catch (OperationCanceledException) { }
-    catch (Exception)
+    catch (Exception ex)
     {
-        // Client disconnected
+        Console.WriteLine($"SSE loop error: {ex.Message}");
     }
 })
 .RequireCors(app.Environment.IsDevelopment() ? "dev" : "strict")

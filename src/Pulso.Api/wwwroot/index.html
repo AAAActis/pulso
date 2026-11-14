@@ -1,0 +1,1976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PULSO API / Status Dashboard</title>
+  <style>
+    :root {
+      --bg-canvas: #0b0f19;
+      --bg-sidebar: #0e1320;
+      --bg-card: #131b2e;
+      --bg-card-inner: #182238;
+      --bg-row-hover: rgba(255, 255, 255, 0.025);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(56, 189, 248, 0.25);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --brand-blue: #38bdf8;
+      --status-green: #10b981;
+      --status-green-bg: rgba(16, 185, 129, 0.14);
+      --status-green-border: rgba(16, 185, 129, 0.35);
+      --status-amber: #f59e0b;
+      --status-amber-bg: rgba(245, 158, 11, 0.14);
+      --status-amber-border: rgba(245, 158, 11, 0.45);
+      --status-red: #ef4444;
+      --status-red-bg: rgba(239, 68, 68, 0.15);
+      --status-red-border: rgba(239, 68, 68, 0.4);
+      --chart-p50: #38bdf8;
+      --chart-p95: #818cf8;
+      --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 200ms;
+      --duration-slow: 300ms;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font-sans);
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+    }
+
+    /* ========== LAYOUT ========== */
+    .app-shell {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "sidebar header"
+        "sidebar main"
+        "sidebar footer";
+      min-height: 100vh;
+    }
+
+    /* ========== SIDEBAR ========== */
+    .sidebar {
+      grid-area: sidebar;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 100;
+    }
+
+    .sidebar__logo {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .sidebar__logo path {
+      stroke: var(--brand-blue);
+      transition: stroke var(--duration-normal) var(--ease-out);
+    }
+
+    .sidebar__logo:hover path {
+      stroke: var(--brand-blue);
+      filter: drop-shadow(0 0 4px var(--brand-blue));
+    }
+
+    .sidebar__nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      width: 100%;
+      padding: 0 8px;
+    }
+
+    .sidebar__nav-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+      position: relative;
+    }
+
+    .sidebar__nav-btn:hover {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--brand-blue);
+    }
+
+    .sidebar__nav-btn:active {
+      transform: scale(0.95);
+    }
+
+    .sidebar__nav-btn--active {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--brand-blue);
+    }
+
+    .sidebar__nav-btn svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .sidebar__footer {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 8px;
+      width: 100%;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+      margin-top: auto;
+    }
+
+    .sidebar__link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+
+    .sidebar__link:hover {
+      background: var(--bg-card-inner);
+      color: var(--text-primary);
+    }
+
+    .sidebar__link svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    /* ========== HEADER ========== */
+    .header {
+      grid-area: header;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .header__title {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .header__brand {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--brand-blue);
+      letter-spacing: -0.02em;
+    }
+
+    .header__slash {
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .header__subtitle {
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .header__global-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--status-green-bg);
+      border: 1px solid var(--status-green-border);
+      border-radius: 9999px;
+      padding: 8px 16px;
+      flex-shrink: 0;
+      transition: background var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out);
+    }
+
+    .header__global-status--degraded {
+      background: var(--status-amber-bg);
+      border-color: var(--status-amber-border);
+    }
+
+    .header__global-status-icon {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--status-green);
+      animation: pulse-ring 2s ease-out infinite;
+      flex-shrink: 0;
+    }
+
+    .header__global-status--degraded .header__global-status-icon {
+      background: var(--status-amber);
+      animation: pulse-ring-amber 2s ease-out infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 0 0 var(--status-green); }
+      70% { box-shadow: 0 0 0 8px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    @keyframes pulse-ring-amber {
+      0% { box-shadow: 0 0 0 0 var(--status-amber); }
+      70% { box-shadow: 0 0 0 8px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    .header__global-status-text {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .header__kpis {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .kpi {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 8px 16px;
+      min-width: 120px;
+      text-align: center;
+      transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    .kpi:hover {
+      border-color: var(--border-highlight);
+      box-shadow: 0 0 0 1px var(--border-highlight);
+    }
+
+    .kpi__label {
+      display: block;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .kpi__value {
+      display: block;
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+    }
+
+    /* ========== MAIN CONTENT ========== */
+    .main {
+      grid-area: main;
+      padding: 24px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    /* ========== SERVICES PANEL ========== */
+    .services-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .services-panel__header {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .services-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .services-table thead {
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .services-table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .services-table th:nth-child(1) { width: 30%; }
+    .services-table th:nth-child(2) { width: 20%; }
+    .services-table th:nth-child(3) { width: 25%; }
+    .services-table th:nth-child(4) { width: 25%; }
+
+    .services-table tbody tr {
+      border-bottom: 1px solid var(--border-subtle);
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+
+    .services-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .services-table tbody tr:hover {
+      background: var(--bg-row-hover);
+    }
+
+    .services-table td {
+      padding: 12px;
+      vertical-align: middle;
+    }
+
+    .service-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-badge--online {
+      background: var(--status-green-bg);
+      border: 1px solid var(--status-green-border);
+      color: var(--status-green);
+    }
+    .status-badge--online::before { background: var(--status-green); }
+
+    .status-badge--up {
+      background: var(--status-green-bg);
+      border: 1px solid var(--status-green-border);
+      color: var(--status-green);
+    }
+    .status-badge--up::before { background: var(--status-green); }
+
+    .status-badge--tunnel {
+      background: var(--status-amber-bg);
+      border: 1px solid var(--status-amber-border);
+      color: var(--status-amber);
+    }
+    .status-badge--tunnel::before { background: var(--status-amber); }
+
+    .status-badge--disconnected {
+      background: var(--status-red-bg);
+      border: 1px solid var(--status-red-border);
+      color: var(--status-red);
+    }
+    .status-badge--disconnected::before { background: var(--status-red); }
+
+    .uptime-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 22px;
+      margin-bottom: 4px;
+    }
+
+    .uptime-bar {
+      width: 5px;
+      border-radius: 2px;
+      background: var(--status-green);
+      transition: height var(--duration-normal) var(--ease-out), background var(--duration-fast) var(--ease-out);
+      flex-shrink: 0;
+    }
+
+    .uptime-bar--warn {
+      background: var(--status-amber);
+    }
+
+    .uptime-bar--down {
+      background: var(--status-red);
+    }
+
+    .uptime-bar--dimmed {
+      opacity: 0.35;
+      background: var(--status-green);
+    }
+
+    .uptime-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.625rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+      padding: 0 2px;
+    }
+
+    /* ========== BOTTOM GRID ========== */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* ========== LAB PANEL ========== */
+    .lab-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      min-height: 380px;
+    }
+
+    .lab-panel__divider {
+      grid-column: 1 / -1;
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 0 -20px;
+    }
+
+    .lab-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .lab-section__title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    /* Latency Chart */
+    .latency-chart {
+      flex: 1;
+      position: relative;
+      height: 260px;
+    }
+
+    .latency-chart__legend {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 8px;
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+    }
+
+    .latency-chart__legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .latency-chart__legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    .latency-chart__legend-color--p50 { background: var(--chart-p50); }
+    .latency-chart__legend-color--p95 { background: var(--chart-p95); }
+
+    .latency-chart__svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Cache Stats */
+    .cache-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cache-gauge {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cache-gauge__svg {
+      flex-shrink: 0;
+    }
+
+    .cache-gauge__details {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .cache-gauge__hit-ratio {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .cache-gauge__hit-ratio-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .cache-gauge__hit-ratio-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-card-inner);
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cache-gauge__hit-ratio-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--brand-blue), var(--status-green));
+      transition: width var(--duration-slow) var(--ease-out);
+    }
+
+    .cache-gauge__hit-ratio-value {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+
+    .cache-gauge__stale-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      background: var(--bg-card-inner);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+      width: fit-content;
+    }
+
+    .cache-gauge__stale-badge--active {
+      background: var(--status-green-bg);
+      border-color: var(--status-green-border);
+      color: var(--status-green);
+    }
+
+    .cache-gauge__stale-badge--active::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-green);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    .cache-gauge__stale-badge--stale {
+      background: var(--status-amber-bg);
+      border-color: var(--status-amber-border);
+      color: var(--status-amber);
+    }
+
+    .cache-gauge__stale-badge--stale::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-amber);
+      animation: pulse-ring-amber 2s ease-out infinite;
+    }
+
+    /* Simulate Button */
+    .simulate-btn {
+      margin-top: auto;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 1.5px solid var(--status-amber);
+      border-radius: 10px;
+      background: rgba(245, 158, 11, 0.08);
+      cursor: pointer;
+      transition: background var(--duration-normal) var(--ease-out), border-color var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+      text-align: left;
+    }
+
+    .simulate-btn:hover {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: var(--status-amber);
+      box-shadow: 0 0 0 1px var(--status-amber), 0 0 20px rgba(245, 158, 11, 0.15);
+    }
+
+    .simulate-btn:active {
+      transform: scale(0.98);
+    }
+
+    .simulate-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--status-amber);
+    }
+
+    .simulate-btn__icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      color: var(--status-amber);
+      margin-top: 2px;
+    }
+
+    .simulate-btn__content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .simulate-btn__title {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--status-amber);
+      line-height: 1.3;
+    }
+
+    .simulate-btn__subtitle {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .simulate-btn__countdown {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--status-amber);
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-mono);
+      margin-top: 6px;
+      animation: countdown-pulse 1s ease-out infinite;
+    }
+
+    @keyframes countdown-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .simulate-btn--active {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: var(--status-amber);
+    }
+
+    /* ========== ENDPOINTS PANEL ========== */
+    .endpoints-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: fit-content;
+      position: sticky;
+      top: 96px;
+    }
+
+    .endpoints-panel__title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .endpoints-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .endpoint-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-card-inner);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: border-color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+    }
+
+    .endpoint-row:hover {
+      border-color: var(--border-highlight);
+      background: var(--bg-card);
+      transform: translateX(2px);
+    }
+
+    .endpoint-row:active {
+      transform: translateX(0) scale(0.99);
+    }
+
+    .endpoint-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 56px;
+      height: 28px;
+      border-radius: 6px;
+      font-size: 0.625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .endpoint-badge--get {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--brand-blue);
+    }
+
+    .endpoint-badge--post {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--status-green);
+    }
+
+    .endpoint-path {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .endpoints-panel__footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .endpoints-panel__footer svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--status-green);
+      flex-shrink: 0;
+    }
+
+    /* ========== MODALS ========== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity var(--duration-normal) var(--ease-out), visibility var(--duration-normal) var(--ease-out);
+      padding: 24px;
+    }
+
+    .modal-overlay--open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      transform: scale(0.95) translateY(8px);
+      transition: transform var(--duration-normal) var(--ease-out);
+    }
+
+    .modal-overlay--open .modal {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .modal__title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal__close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: var(--bg-card-inner);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+
+    .modal__close:hover {
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .modal__close svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    .modal__content {
+      font-size: 0.875rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .modal__content h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .modal__content p {
+      margin-bottom: 12px;
+    }
+
+    .modal__content code {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      background: var(--bg-card-inner);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--brand-blue);
+    }
+
+    .modal__content ul {
+      margin: 8px 0 12px 20px;
+    }
+
+    .modal__content li {
+      margin-bottom: 6px;
+    }
+
+    /* ========== TOAST / NOTIFICATION ========== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.875rem;
+      color: var(--text-primary);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform var(--duration-normal) var(--ease-out), opacity var(--duration-normal) var(--ease-out);
+      z-index: 1100;
+    }
+
+    .toast--show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast--success {
+      border-color: var(--status-green-border);
+    }
+
+    .toast--error {
+      border-color: var(--status-red-border);
+    }
+
+    .toast svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 1024px) {
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .endpoints-panel {
+        position: static;
+      }
+
+      .lab-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .lab-panel__divider {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr auto;
+        grid-template-areas:
+          "header"
+          "sidebar"
+          "main"
+          "footer";
+      }
+
+      .sidebar {
+        flex-direction: row;
+        height: auto;
+        width: 100%;
+        padding: 12px 16px;
+        gap: 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+
+      .sidebar__logo {
+        margin-bottom: 0;
+      }
+
+      .sidebar__nav {
+        flex-direction: row;
+        flex: 1;
+        padding: 0;
+        justify-content: center;
+      }
+
+      .sidebar__footer {
+        flex-direction: row;
+        border-top: none;
+        padding-top: 0;
+        gap: 12px;
+      }
+
+      .header {
+        padding: 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      .header__title {
+        justify-content: center;
+        text-align: center;
+      }
+
+      .header__global-status {
+        justify-content: center;
+      }
+
+      .header__kpis {
+        justify-content: center;
+      }
+
+      .main {
+        padding: 16px;
+      }
+
+      .bottom-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .lab-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .services-table th:nth-child(3),
+      .services-table td:nth-child(3) {
+        display: none;
+      }
+
+      .services-table th:nth-child(1) { width: 35%; }
+      .services-table th:nth-child(2) { width: 25%; }
+      .services-table th:nth-child(4) { width: 40%; }
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .sidebar__nav-btn:hover {
+        background: rgba(56, 189, 248, 0.1);
+        color: var(--brand-blue);
+      }
+
+      .kpi:hover {
+        border-color: var(--border-highlight);
+        box-shadow: 0 0 0 1px var(--border-highlight);
+      }
+
+      .endpoint-row:hover {
+        border-color: var(--border-highlight);
+        background: var(--bg-card);
+        transform: translateX(2px);
+      }
+
+      .simulate-btn:hover {
+        background: rgba(245, 158, 11, 0.16);
+        border-color: var(--status-amber);
+        box-shadow: 0 0 0 1px var(--status-amber), 0 0 20px rgba(245, 158, 11, 0.15);
+      }
+
+      .modal__close:hover {
+        background: var(--bg-card);
+        color: var(--text-primary);
+      }
+
+      .sidebar__link:hover {
+        background: var(--bg-card-inner);
+        color: var(--text-primary);
+      }
+
+      .services-table tbody tr:hover {
+        background: var(--bg-row-hover);
+      }
+    }
+
+    /* ========== SCROLLBAR ========== */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-subtle);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Sidebar -->
+    <aside class="sidebar" role="navigation" aria-label="Navegación principal">
+      <svg class="sidebar__logo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2 12C2 12 4 12 5 12C5.5 10 6.5 8 8 8C9 6 10 6 11 8C12 10 12.5 12 13 12C14 12 16 12 16 12C17 14 17 16 16 16C15 18 14 18 13 16C12 14 11 12 10 12C9 12 8 14 7 16C6 18 5 18 4 16C3 14 2 12 2 12Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 12H18" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+
+      <nav class="sidebar__nav">
+        <button class="sidebar__nav-btn sidebar__nav-btn--active" data-view="dashboard" aria-label="Dashboard" title="Dashboard">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/>
+            <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/>
+          </svg>
+        </button>
+        <button class="sidebar__nav-btn" data-view="console" aria-label="Consola SSE" title="Consola / Logs en vivo">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M8 9H16M8 15H12M8 15L12 15M8 9L16 9M4 9L8 9M16 9L20 9" stroke-width="2" stroke-linecap="round"/>
+            <path d="M4 15L8 15M12 15L16 15" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 3V21" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button class="sidebar__nav-btn" data-view="architecture" aria-label="Arquitectura y Seguridad" title="Arquitectura / Seguridad">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke-width="2"/>
+            <path d="M12 15V12M12 9H12.01" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </nav>
+
+      <div class="sidebar__footer">
+        <a class="sidebar__link" href="https://s-portfolio.bbasolutions.ar" target="_blank" rel="noopener" aria-label="Portafolio de Santiago">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M18 13V19A2 2 0 0 1 16 21H8A2 2 0 0 1 6 19V13M16 13H8M8 13L12 9L16 13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 13C18 13 20 9 20 9C20 9 22 13 22 13" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a class="sidebar__link" href="https://github.com/AAAActis" target="_blank" rel="noopener" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.477 2 12C2 16.418 4.872 20.168 7.896 21.3C8.328 21.42 8.592 21.132 8.592 20.7C8.592 20.13 8.592 18.81 8.592 17.772C5.7 18.18 5.328 16.512 5.328 16.512C4.752 15.288 4.176 14.808 4.176 14.808C3.456 13.524 4.524 13.104 4.524 13.104C5.232 13.164 5.736 13.692 5.736 13.692C6.66 12.888 7.32 12.66 7.908 12.636C8.028 12.108 8.136 11.64 8.136 11.184C8.136 10.284 8.556 9.504 9.456 9.108C9.324 8.844 9.036 8.16 9.42 7.548C9.42 7.548 9.852 6.732 11.4 7.32C12.168 7.164 12.948 7.08 13.716 7.08C14.52 7.08 15.288 7.164 16.056 7.32C17.592 6.732 18.024 7.548 18.024 7.548C18.408 8.16 18.12 8.844 17.988 9.108C18.876 9.504 19.296 10.284 19.296 11.184C19.296 11.64 19.416 12.108 19.524 12.636C20.1 12.66 20.76 12.888 21.684 13.692C21.684 13.692 22.188 13.164 22.896 13.104C22.896 13.104 22.32 14.808 21.6 14.808C21.6 16.512 21.228 18.18 18.348 17.772C18.348 18.81 18.348 20.13 18.348 20.7C18.348 21.132 18.612 21.42 19.044 21.3C22.068 20.168 24.936 16.418 24.936 12C24.936 6.477 20.459 2 12 2Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Header -->
+    <header class="header" role="banner">
+      <div class="header__title">
+        <span class="header__brand">PULSO API</span>
+        <span class="header__slash">/</span>
+        <span class="header__subtitle">Status Dashboard</span>
+      </div>
+
+      <div class="header__global-status" id="globalStatus" role="status" aria-live="polite">
+        <span class="header__global-status-icon" aria-hidden="true"></span>
+        <span class="header__global-status-text" id="globalStatusText">Sistemas Operativos</span>
+      </div>
+
+      <div class="header__kpis" role="region" aria-label="Indicadores clave">
+        <div class="kpi">
+          <span class="kpi__label">Uptime 24h</span>
+          <span class="kpi__value tabular-nums" id="kpiUptime24h">99.98%</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi__label">Uptime 7d</span>
+          <span class="kpi__value tabular-nums" id="kpiUptime7d">99.95%</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi__label">Caché Hit Ratio</span>
+          <span class="kpi__value tabular-nums" id="kpiHitRatio">94.2%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main" role="main">
+      <!-- Services Panel -->
+      <section class="services-panel" aria-labelledby="servicesTitle">
+        <h2 class="services-panel__header" id="servicesTitle">Servicios Publicados</h2>
+        <table class="services-table" role="table">
+          <thead>
+            <tr>
+              <th scope="col">Nombre amigable</th>
+              <th scope="col">Red Interna (Docker)</th>
+              <th scope="col">URL Pública (Cloudflare)</th>
+              <th scope="col">Uptime 24h (Barras)</th>
+            </tr>
+          </thead>
+          <tbody id="servicesBody">
+            <!-- Rows populated by JS -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Bottom Grid -->
+      <div class="bottom-grid">
+        <!-- Lab Panel -->
+        <section class="lab-panel" aria-labelledby="labTitle">
+          <h2 class="lab-section__title" id="labTitle" style="grid-column: 1 / -1;">Panel de Laboratorio (Simulaciones y Métricas)</h2>
+
+          <!-- Latency Chart -->
+          <div class="lab-section">
+            <span class="lab-section__title">Gráficos de latencia en tiempo real</span>
+            <div class="latency-chart" role="img" aria-label="Gráfico de latencia p50 y p95 en tiempo real">
+              <div class="latency-chart__legend">
+                <span class="latency-chart__legend-item">
+                  <span class="latency-chart__legend-color latency-chart__legend-color--p50" aria-hidden="true"></span>
+                  <span>— p50 (<span id="legendP50" class="tabular-nums">12</span>ms)</span>
+                </span>
+                <span class="latency-chart__legend-item">
+                  <span class="latency-chart__legend-color latency-chart__legend-color--p95" aria-hidden="true"></span>
+                  <span>— p95 (<span id="legendP95" class="tabular-nums">45</span>ms)</span>
+                </span>
+              </div>
+              <svg class="latency-chart__svg" id="latencyChart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+            </div>
+          </div>
+
+          <!-- Cache Stats + Simulate Button -->
+          <div class="lab-section">
+            <span class="lab-section__title">Estadísticas de la caché híbrida de .NET (Memoria + Redis)</span>
+            <div class="cache-stats">
+              <div class="cache-gauge">
+                <svg class="cache-gauge__svg" viewBox="0 0 120 60" aria-label="Disponibilidad de caché 100%">
+                  <defs>
+                    <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#38bdf8"/>
+                      <stop offset="100%" stop-color="#10b981"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- Background arc -->
+                  <path d="M10 50 A40 40 0 0 1 110 50" fill="none" stroke="var(--bg-card-inner)" stroke-width="12" stroke-linecap="round"/>
+                  <!-- Progress arc -->
+                  <path id="gaugeProgress" d="M10 50 A40 40 0 0 1 110 50" fill="none" stroke="url(#gaugeGradient)" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="0" transform="rotate(-90 60 50)" style="transition: stroke-dashoffset var(--duration-slow) var(--ease-out);"/>
+                  <!-- Center text -->
+                  <text x="60" y="55" text-anchor="middle" font-family="var(--font-mono)" font-size="16" font-weight="700" fill="var(--text-primary)" class="tabular-nums" id="gaugeValue">100%</text>
+                </svg>
+                <div class="cache-gauge__details">
+                  <div class="cache-gauge__hit-ratio">
+                    <span class="cache-gauge__hit-ratio-label">Hit Ratio</span>
+                    <div class="cache-gauge__hit-ratio-bar">
+                      <div class="cache-gauge__hit-ratio-fill" id="hitRatioFill" style="width: 94.2%;"></div>
+                    </div>
+                    <span class="cache-gauge__hit-ratio-value tabular-nums" id="hitRatioValue">94.2%</span>
+                  </div>
+                  <span class="cache-gauge__stale-badge" id="staleBadge">Stale-While-Revalidate activo</span>
+                </div>
+              </div>
+
+              <button class="simulate-btn" id="simulateBtn" type="button" aria-label="Simular caída del servicio de prueba">
+                <svg class="simulate-btn__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M12 9V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div class="simulate-btn__content">
+                  <span class="simulate-btn__title">SIMULAR CAÍDA (Servicio de Prueba)</span>
+                  <span class="simulate-btn__subtitle">Prueba el Circuit Breaker y la respuesta de la caché con datos antiguos</span>
+                  <span class="simulate-btn__countdown" id="simulateCountdown" style="display: none;"></span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Endpoints Panel -->
+        <aside class="endpoints-panel" aria-labelledby="endpointsTitle">
+          <h3 class="endpoints-panel__title" id="endpointsTitle">Endpoints de la API (v1)</h3>
+          <div class="endpoints-list" id="endpointsList">
+            <!-- Populated by JS -->
+          </div>
+          <div class="endpoints-panel__footer">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+              <path d="M7 11V7A5 5 0 0 1 17.07 3.5" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>CORS: s-portfolio.bbasolutions.ar</span>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <!-- Console Modal -->
+  <div class="modal-overlay" id="consoleModal" role="dialog" aria-modal="true" aria-labelledby="consoleModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h3 class="modal__title" id="consoleModalTitle">Consola / Logs SSE en vivo</h3>
+        <button class="modal__close" id="consoleModalClose" aria-label="Cerrar consola">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M18 6L6 18M6 6L18 18" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal__content" id="consoleContent">
+        <p style="color: var(--text-muted); font-size: 0.8125rem;">Conectando al stream SSE...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Architecture Modal -->
+  <div class="modal-overlay" id="archModal" role="dialog" aria-modal="true" aria-labelledby="archModalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h3 class="modal__title" id="archModalTitle">Arquitectura y Seguridad</h3>
+        <button class="modal__close" id="archModalClose" aria-label="Cerrar arquitectura">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M18 6L6 18M6 6L18 18" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal__content">
+        <h3>Resiliencia</h3>
+        <p><strong>HybridCache (L1 + L2):</strong> Memoria in-proceso (TTL 15s) + Redis compartido (TTL 60s, prefijo <code>pulso:</code>). Si Redis no está disponible, la app opera solo con L1 sin errores.</p>
+        <p><strong>Polly v8 (HTTP Resilience):</strong> Timeout 3s, Retry 1× con jitter 200ms, Circuit Breaker que protege al servidor tras fallos consecutivos.</p>
+
+        <h3>Monitoreo Doble Vía</h3>
+        <p>Cada servicio se verifica por dos rutas independientes:</p>
+        <ul>
+          <li><strong>Red Interna (Docker):</strong> Red privada de contenedores, URLs internas (<code>http://container:port</code>)</li>
+          <li><strong>URL Pública (Cloudflare):</strong> Túneles Cloudflare públicos</li>
+        </ul>
+        <p>Estados resultantes: <span style="color:var(--status-green)">ONLINE/UP</span> · <span style="color:var(--status-amber)">FALLO DE TÚNEL</span> · <span style="color:var(--status-red)">DESCONECTADO</span></p>
+
+        <h3>Seguridad</h3>
+        <p><strong>CORS estricto:</strong> Solo <code>https://s-portfolio.bbasolutions.ar</code> (y <code>localhost</code> en Development).</p>
+        <p><strong>Rate Limiting:</strong> 5 req/min en <code>/lab/simulate-failure</code>, 60 req/min global. Lee <code>CF-Connecting-IP</code> para IP real detrás de Cloudflare.</p>
+        <p><strong>Headers:</strong> CSP, <code>X-Content-Type-Options: nosniff</code>, <code>Referrer-Policy</code>, <code>Permissions-Policy</code>. Errores en formato <code>ProblemDetails</code> (RFC 9457).</p>
+
+        <h3>Endpoints</h3>
+        <ul>
+          <li><code>GET /api/v1/summary</code> — KPIs globales (con ETag / 304)</li>
+          <li><code>GET /api/v1/services</code> — 5 servicios + datos de laboratorio</li>
+          <li><code>GET /api/v1/stream</code> — SSE cada 3s + push inmediato en simulación</li>
+          <li><code>POST /api/v1/lab/simulate-failure</code> — Activa simulación 45s</li>
+          <li><code>GET /health/live</code> · <code>GET /health/ready</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    // ========== STATE ==========
+    const state = {
+      services: [],
+      lab: {},
+      summary: {},
+      sse: null,
+      simulationActive: false,
+      simulationEndTime: 0,
+      countdownInterval: null,
+      latencyHistory: { p50: [], p95: [] },
+      maxHistoryPoints: 50,
+      consoleLogs: [],
+      maxConsoleLogs: 100
+    };
+
+    // ========== DOM ELEMENTS ==========
+    const els = {
+      globalStatus: document.getElementById('globalStatus'),
+      globalStatusText: document.getElementById('globalStatusText'),
+      kpiUptime24h: document.getElementById('kpiUptime24h'),
+      kpiUptime7d: document.getElementById('kpiUptime7d'),
+      kpiHitRatio: document.getElementById('kpiHitRatio'),
+      servicesBody: document.getElementById('servicesBody'),
+      latencyChart: document.getElementById('latencyChart'),
+      legendP50: document.getElementById('legendP50'),
+      legendP95: document.getElementById('legendP95'),
+      gaugeProgress: document.getElementById('gaugeProgress'),
+      gaugeValue: document.getElementById('gaugeValue'),
+      hitRatioFill: document.getElementById('hitRatioFill'),
+      hitRatioValue: document.getElementById('hitRatioValue'),
+      staleBadge: document.getElementById('staleBadge'),
+      simulateBtn: document.getElementById('simulateBtn'),
+      simulateCountdown: document.getElementById('simulateCountdown'),
+      endpointsList: document.getElementById('endpointsList'),
+      consoleModal: document.getElementById('consoleModal'),
+      consoleContent: document.getElementById('consoleContent'),
+      consoleModalClose: document.getElementById('consoleModalClose'),
+      archModal: document.getElementById('archModal'),
+      archModalClose: document.getElementById('archModalClose'),
+      toastContainer: document.getElementById('toastContainer'),
+      sidebarNavBtns: document.querySelectorAll('.sidebar__nav-btn')
+    };
+
+    // ========== UTILITIES ==========
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast--${type} toast--show`;
+      toast.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style="stroke:${type === 'success' ? 'var(--status-green)' : 'var(--status-red)'};stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+          ${type === 'success'
+            ? '<path d="M22 11.08V12A10 10 0 1 1 10 2.08"/><path d="M22 4L12 14.01L9 11.01"/>'
+            : '<circle cx="12" cy="12" r="10"/><path d="M15 9L9 15M9 9L15 15"/>'
+          }
+        </svg>
+        <span>${message}</span>
+      `;
+      els.toastContainer.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('toast--show'));
+      setTimeout(() => {
+        toast.classList.remove('toast--show');
+        setTimeout(() => toast.remove(), 200);
+      }, 4000);
+    }
+
+    function addConsoleLog(message, type = 'info') {
+      const time = new Date().toLocaleTimeString();
+      const colors = {
+        info: 'var(--text-secondary)',
+        success: 'var(--status-green)',
+        warn: 'var(--status-amber)',
+        error: 'var(--status-red)',
+        sse: 'var(--brand-blue)'
+      };
+      state.consoleLogs.unshift({ time, message, color: colors[type] || colors.info });
+      if (state.consoleLogs.length > state.maxConsoleLogs) state.consoleLogs.pop();
+      renderConsole();
+    }
+
+    function renderConsole() {
+      if (!els.consoleModal.classList.contains('modal-overlay--open')) return;
+      els.consoleContent.innerHTML = state.consoleLogs.map(log =>
+        `<div style="font-family:var(--font-mono);font-size:0.75rem;line-height:1.6;padding:4px 0;border-bottom:1px solid var(--border-subtle);">
+          <span style="color:var(--text-muted);">${log.time}</span>
+          <span style="color:${log.color};margin:0 8px;">●</span>
+          <span>${log.message}</span>
+        </div>`
+      ).join('') || '<p style="color: var(--text-muted); font-size: 0.8125rem;">Sin logs aún...</p>';
+      els.consoleContent.scrollTop = 0;
+    }
+
+    function formatUptime(val) {
+      return val.toFixed(2) + '%';
+    }
+
+    function getStatusBadgeClass(internal, publicStatus) {
+      if (internal && publicStatus === 'UP') return 'status-badge--online';
+      if (internal && publicStatus === 'FALLO DE TÚNEL') return 'status-badge--tunnel';
+      return 'status-badge--disconnected';
+    }
+
+    function getPublicBadgeClass(publicStatus) {
+      if (publicStatus === 'UP') return 'status-badge--up';
+      if (publicStatus === 'FALLO DE TÚNEL') return 'status-badge--tunnel';
+      return 'status-badge--disconnected';
+    }
+
+    // ========== CHART RENDERING ==========
+    function renderLatencyChart() {
+      const svg = els.latencyChart;
+      const width = svg.clientWidth || 500;
+      const height = svg.clientHeight || 260;
+      const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+
+      const p50Data = state.latencyHistory.p50.slice(-state.maxHistoryPoints);
+      const p95Data = state.latencyHistory.p95.slice(-state.maxHistoryPoints);
+      const allData = [...p50Data, ...p95Data];
+      const maxVal = Math.max(...allData, 100);
+      const minVal = 0;
+
+      const xScale = (i) => padding.left + (i / (state.maxHistoryPoints - 1)) * chartWidth;
+      const yScale = (val) => padding.top + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
+
+      // Generate path for p50
+      const p50Path = p50Data.length > 1
+        ? 'M' + p50Data.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')
+            .replace(/ (\d+\.?\d*),/g, ' C$1,') // Simple curve approximation
+            .replace('M', 'M') + ' '
+        : '';
+
+      // Generate path for p95
+      const p95Path = p95Data.length > 1
+        ? 'M' + p95Data.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')
+        : '';
+
+      // Build SVG with gradients and areas
+      svg.innerHTML = `
+        <defs>
+          <linearGradient id="p50AreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="var(--chart-p50)" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="var(--chart-p50)" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="p95AreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="var(--chart-p95)" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="var(--chart-p95)" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="p50LineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--chart-p50)"/>
+            <stop offset="100%" stop-color="var(--chart-p50)"/>
+          </linearGradient>
+          <linearGradient id="p95LineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--chart-p95)"/>
+            <stop offset="100%" stop-color="var(--chart-p95)"/>
+          </linearGradient>
+        </defs>
+        <!-- Grid lines -->
+        ${[0.25, 0.5, 0.75].map(frac => `
+          <line x1="${padding.left}" y1="${padding.top + chartHeight * frac}" x2="${width - padding.right}" y2="${padding.top + chartHeight * frac}" stroke="var(--border-subtle)" stroke-width="0.5" stroke-dasharray="4,4"/>
+        `).join('')}
+        <!-- Y axis labels -->
+        ${[maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25, 0].map((v, i) => `
+          <text x="${padding.left - 8}" y="${padding.top + chartHeight * i * 0.25 + 4}" text-anchor="end" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" class="tabular-nums">${Math.round(v)}</text>
+        `).join('')}
+        <!-- X axis labels -->
+        <text x="${padding.left}" y="${height - 8}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">0s</text>
+        <text x="${width - padding.right - 20}" y="${height - 8}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" text-anchor="end">ahora</text>
+        <!-- p95 Area -->
+        ${p95Data.length > 1 ? `
+          <path d="${p95Path} L${xScale(p95Data.length-1)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p95AreaGrad)"/>
+        ` : ''}
+        <!-- p50 Area -->
+        ${p50Data.length > 1 ? `
+          <path d="${p50Path} L${xScale(p50Data.length-1)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p50AreaGrad)"/>
+        ` : ''}
+        <!-- p95 Line -->
+        ${p95Data.length > 1 ? `
+          <path d="${p95Path}" fill="none" stroke="url(#p95LineGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="drop-shadow(0 0 4px var(--chart-p95))"/>
+        ` : ''}
+        <!-- p50 Line -->
+        ${p50Data.length > 1 ? `
+          <path d="${p50Path}" fill="none" stroke="url(#p50LineGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="drop-shadow(0 0 4px var(--chart-p50))"/>
+        ` : ''}
+        <!-- Current value dots -->
+        ${p50Data.length ? `
+          <circle cx="${xScale(p50Data.length-1)}" cy="${yScale(p50Data[p50Data.length-1])}" r="4" fill="var(--chart-p50)" stroke="var(--bg-card)" stroke-width="2"/>
+        ` : ''}
+        ${p95Data.length ? `
+          <circle cx="${xScale(p95Data.length-1)}" cy="${yScale(p95Data[p95Data.length-1])}" r="4" fill="var(--chart-p95)" stroke="var(--bg-card)" stroke-width="2"/>
+        ` : ''}
+      `;
+    }
+
+    function updateGauge(percent) {
+      const circumference = 2 * Math.PI * 40; // r=40
+      const offset = circumference * (1 - percent / 100);
+      els.gaugeProgress.style.strokeDashoffset = offset;
+      els.gaugeValue.textContent = percent.toFixed(0) + '%';
+    }
+
+    // ========== DATA RENDERING ==========
+    function renderServices() {
+      // Normalize service names to match exact specification
+      const nameMap = {
+        'Nutrition App': 'Nutrition App',
+        'N8n Automation': 'n8n Automation',
+        'Santiago Portfolio': 'Santiago Portfolio',
+        'Api Gateway': 'API Gateway',
+        'Demo Service': 'Demo Service'
+      };
+
+      const isSimulating = state.simulationActive === true || (state.lab && state.lab.simulationActive === true);
+
+      els.servicesBody.innerHTML = state.services.map(svc => {
+        const internalBadgeClass = getStatusBadgeClass(svc.internalStatus === 'UP', svc.publicStatus);
+        const publicBadgeClass = getPublicBadgeClass(svc.publicStatus);
+        const displayName = nameMap[svc.name] || svc.name;
+
+        // Apply simulation overrides for visual feedback
+        let internalStatus = svc.internalStatus;
+        let publicStatus = svc.publicStatus;
+        let pubBadgeClass = publicBadgeClass;
+
+        if (isSimulating) {
+          if (svc.id === 'demo-service') {
+            internalStatus = 'DOWN';
+            publicStatus = 'DESCONECTADO';
+            pubBadgeClass = 'status-badge status-badge--down';
+          } else if (svc.id === 'api-gateway') {
+            internalStatus = 'UP';
+            publicStatus = 'FALLO DE TÚNEL';
+            pubBadgeClass = 'status-badge status-badge--tunnel';
+          }
+        }
+
+        // Build uptime bars
+        const bars = (svc.bars24h || []).map((bar, i) => {
+          let barClass = 'uptime-bar';
+          let height = '22px';
+          if (bar === 'warn') barClass += ' uptime-bar--warn';
+          else if (bar === 'down') barClass += ' uptime-bar--down';
+          else if (bar === 'dimmed') barClass += ' uptime-bar--dimmed';
+          // Vary heights slightly for visual interest on OK bars
+          if (bar === 'ok') height = `${16 + Math.sin(i * 0.8) * 6}px`;
+          return `<div class="${barClass}" style="height: ${height}" title="${i}h: ${bar}"></div>`;
+        }).join('');
+
+        return `
+          <tr>
+            <td><span class="service-name">${displayName}</span></td>
+            <td><span class="status-badge ${internalBadgeClass}">${internalStatus}</span></td>
+            <td><span class="status-badge ${pubBadgeClass}">${publicStatus}</span></td>
+            <td>
+              <div class="uptime-bars" role="img" aria-label="Uptime últimas 24 horas">${bars}</div>
+              <div class="uptime-labels"><span>0h</span><span>12h</span><span>24h</span></div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderSummary() {
+      els.kpiUptime24h.textContent = formatUptime(state.summary.uptime24h || 99.98);
+      els.kpiUptime7d.textContent = formatUptime(state.summary.uptime7d || 99.95);
+      els.kpiHitRatio.textContent = (state.summary.cacheHitRatio || 94.2).toFixed(1) + '%';
+
+      const isDegraded = state.summary.simulationActive === true;
+      els.globalStatus.classList.toggle('header__global-status--degraded', isDegraded);
+      els.globalStatusText.textContent = isDegraded ? 'Degradación Parcial (Lab Activo)' : 'Sistemas Operativos';
+    }
+
+    function renderLab() {
+      const lab = state.lab || {};
+      els.legendP50.textContent = lab.currentP50Ms || 12;
+      els.legendP95.textContent = lab.currentP95Ms || 45;
+
+      const cacheAvail = lab.cacheAvailabilityPercent || 100;
+      updateGauge(cacheAvail);
+
+      const hitRatio = lab.hitRatioPercent || 94.2;
+      els.hitRatioFill.style.width = hitRatio + '%';
+      els.hitRatioValue.textContent = hitRatio.toFixed(1) + '%';
+
+      const staleActive = lab.staleWhileRevalidateActive === true;
+      const cbOpen = lab.circuitBreakerState === 'OPEN';
+      els.staleBadge.className = 'cache-gauge__stale-badge';
+      if (cbOpen) {
+        els.staleBadge.classList.add('cache-gauge__stale-badge--stale');
+        els.staleBadge.textContent = 'Circuit Breaker: OPEN · Stale activo';
+      } else if (staleActive) {
+        els.staleBadge.classList.add('cache-gauge__stale-badge--active');
+        els.staleBadge.textContent = 'Stale-While-Revalidate activo';
+      } else {
+        els.staleBadge.textContent = 'Stale-While-Revalidate inactivo';
+      }
+
+      // Update simulation button state
+      updateSimulationButton();
+    }
+
+    function renderEndpoints() {
+      const endpoints = [
+        { method: 'GET', path: '/summary', badge: 'get' },
+        { method: 'GET', path: '/services', badge: 'get' },
+        { method: 'GET', path: '/stream (SSE)', badge: 'get' },
+        { method: 'POST', path: '/lab/simulate-failure', badge: 'post' }
+      ];
+
+      els.endpointsList.innerHTML = endpoints.map(ep => `
+        <div class="endpoint-row" data-endpoint="${ep.path}" tabindex="0" role="button" aria-label="Ver ${ep.method} ${ep.path}">
+          <span class="endpoint-badge endpoint-badge--${ep.badge}">${ep.method}</span>
+          <span class="endpoint-path">${ep.path}</span>
+        </div>
+      `).join('');
+
+      // Add click handlers
+      els.endpointsList.querySelectorAll('.endpoint-row').forEach(row => {
+        row.addEventListener('click', () => handleEndpointClick(row.dataset.endpoint));
+        row.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleEndpointClick(row.dataset.endpoint);
+          }
+        });
+      });
+    }
+
+    function handleEndpointClick(path) {
+      if (path === '/lab/simulate-failure') {
+        triggerSimulation();
+        return;
+      }
+      const url = `/api/v1${path}`;
+      navigator.clipboard.writeText(`curl -s "${url}" | jq .`).then(() => {
+        showToast(`Copiado: curl "${url}"`);
+      }).catch(() => {
+        window.open(url, '_blank');
+      });
+    }
+
+    // ========== SIMULATION ==========
+    function triggerSimulation() {
+      els.simulateBtn.disabled = true;
+      fetch('/api/v1/lab/simulate-failure', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        .then(res => {
+          if (res.status === 429) return res.json().then(d => { throw new Error(d.detail || 'Rate limit exceeded'); });
+          if (!res.ok) throw new Error('Error al simular');
+          return res.json();
+        })
+        .then(data => {
+          state.simulationActive = true;
+          state.simulationEndTime = Date.now() + 45000;
+          updateSimulationButton();
+          startCountdown();
+          renderServices(); // Apply simulation overrides immediately
+          showToast('Simulación activada: 45s', 'success');
+          addConsoleLog('POST /api/v1/lab/simulate-failure → 200 OK', 'success');
+        })
+        .catch(err => {
+          showToast(err.message, 'error');
+          addConsoleLog(`POST /api/v1/lab/simulate-failure → ${err.message}`, 'error');
+        })
+        .finally(() => {
+          els.simulateBtn.disabled = false;
+        });
+    }
+
+    function updateSimulationButton() {
+      const active = state.simulationActive;
+      els.simulateBtn.classList.toggle('simulate-btn--active', active);
+      els.simulateCountdown.style.display = active ? 'block' : 'none';
+      els.simulateBtn.querySelector('.simulate-btn__title').textContent = active
+        ? 'SIMULACIÓN ACTIVA'
+        : 'SIMULAR CAÍDA (Servicio de Prueba)';
+      els.simulateBtn.querySelector('.simulate-btn__subtitle').textContent = active
+        ? 'Circuit Breaker OPEN · Caché sirviendo datos Stale · Demo Service DESCONECTADO'
+        : 'Prueba el Circuit Breaker y la respuesta de la caché con datos antiguos';
+    }
+
+    function startCountdown() {
+      clearInterval(state.countdownInterval);
+      state.countdownInterval = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((state.simulationEndTime - Date.now()) / 1000));
+        els.simulateCountdown.textContent = `Simulación activa: ${remaining}s restantes — Circuit Breaker: OPEN`;
+        if (remaining <= 0) {
+          clearInterval(state.countdownInterval);
+          state.simulationActive = false;
+          updateSimulationButton();
+          renderServices(); // Remove simulation overrides
+        }
+      }, 1000);
+    }
+
+    // ========== SSE CONNECTION ==========
+    function connectSSE() {
+      if (state.sse) state.sse.close();
+
+      state.sse = new EventSource('/api/v1/stream');
+      addConsoleLog('SSE conectado a /api/v1/stream', 'sse');
+
+      state.sse.addEventListener('pulse', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          addConsoleLog(`SSE pulse: ${data.summary?.globalStatus || 'update'}`, 'sse');
+          handleSSEData(data);
+        } catch (e) {
+          console.warn('SSE parse error', e);
+        }
+      });
+
+      state.sse.onopen = () => {
+        addConsoleLog('SSE conexión establecida', 'success');
+      };
+
+      state.sse.onerror = (err) => {
+        if (state.sse.readyState === EventSource.CLOSED) {
+          addConsoleLog('SSE error, reconectando en 5s...', 'error');
+          setTimeout(connectSSE, 5000);
+        }
+      };
+    }
+
+    function handleSSEData(data) {
+      // Update state
+      if (data.summary) {
+        state.summary = data.summary;
+        renderSummary();
+      }
+      if (data.services) {
+        state.services = data.services.services || [];
+        renderServices();
+      }
+      if (data.lab) {
+        state.lab = data.lab;
+        // Update latency history for chart
+        if (data.lab.latencySeries && data.lab.latencySeries.length > 0) {
+          const latest = data.lab.latencySeries[data.lab.latencySeries.length - 1];
+          if (latest.p50Ms) {
+            state.latencyHistory.p50.push(latest.p50Ms);
+            if (state.latencyHistory.p50.length > state.maxHistoryPoints) state.latencyHistory.p50.shift();
+          }
+          if (latest.p95Ms) {
+            state.latencyHistory.p95.push(latest.p95Ms);
+            if (state.latencyHistory.p95.length > state.maxHistoryPoints) state.latencyHistory.p95.shift();
+          }
+          renderLatencyChart();
+        }
+        renderLab();
+      }
+
+      // Check simulation state from summary
+      if (data.summary?.simulationActive && !state.simulationActive) {
+        state.simulationActive = true;
+        state.simulationEndTime = Date.now() + (data.lab?.simulationRemainingSeconds || 45) * 1000;
+        startCountdown();
+        updateSimulationButton();
+      } else if (!data.summary?.simulationActive && state.simulationActive) {
+        state.simulationActive = false;
+        clearInterval(state.countdownInterval);
+        updateSimulationButton();
+      }
+    }
+
+    // ========== INITIAL LOAD ==========
+    async function initialLoad() {
+      try {
+        const [summaryRes, servicesRes] = await Promise.all([
+          fetch('/api/v1/summary'),
+          fetch('/api/v1/services')
+        ]);
+
+        if (summaryRes.ok) {
+          state.summary = await summaryRes.json();
+          renderSummary();
+        }
+        if (servicesRes.ok) {
+          const data = await servicesRes.json();
+          state.services = data.services || [];
+          state.lab = data.lab || {};
+          renderServices();
+          renderLab();
+
+          // Initialize latency history from lab data
+          if (data.lab?.latencySeries) {
+            data.lab.latencySeries.forEach(point => {
+              if (point.p50Ms) state.latencyHistory.p50.push(point.p50Ms);
+              if (point.p95Ms) state.latencyHistory.p95.push(point.p95Ms);
+            });
+            // Trim to max
+            if (state.latencyHistory.p50.length > state.maxHistoryPoints) {
+              state.latencyHistory.p50 = state.latencyHistory.p50.slice(-state.maxHistoryPoints);
+            }
+            if (state.latencyHistory.p95.length > state.maxHistoryPoints) {
+              state.latencyHistory.p95 = state.latencyHistory.p95.slice(-state.maxHistoryPoints);
+            }
+            renderLatencyChart();
+          }
+        }
+      } catch (e) {
+        console.error('Initial load failed', e);
+        addConsoleLog('Error cargando datos iniciales', 'error');
+      }
+
+      renderEndpoints();
+      connectSSE();
+    }
+
+    // Simulate button event listener
+    els.simulateBtn.addEventListener('click', triggerSimulation);
+
+    // ========== SIDEBAR NAVIGATION ==========
+    els.sidebarNavBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        els.sidebarNavBtns.forEach(b => b.classList.remove('sidebar__nav-btn--active'));
+        btn.classList.add('sidebar__nav-btn--active');
+
+        const view = btn.dataset.view;
+        if (view === 'console') {
+          els.consoleModal.classList.add('modal-overlay--open');
+          renderConsole();
+        } else if (view === 'architecture') {
+          els.archModal.classList.add('modal-overlay--open');
+        }
+      });
+    });
+
+    // Modal close handlers
+    function closeModal(modal) {
+      modal.classList.remove('modal-overlay--open');
+    }
+
+    els.consoleModalClose.addEventListener('click', () => closeModal(els.consoleModal));
+    els.archModalClose.addEventListener('click', () => closeModal(els.archModal));
+
+    [els.consoleModal, els.archModal].forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal(modal);
+      });
+    });
+
+    // Keyboard: Escape closes modals
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal(els.consoleModal);
+        closeModal(els.archModal);
+      }
+    });
+
+    // ========== RESPONSIVE CHART RESIZE ==========
+    let resizeObserver = new ResizeObserver(() => renderLatencyChart());
+    resizeObserver.observe(els.latencyChart);
+
+    // ========== START ==========
+    document.addEventListener('DOMContentLoaded', initialLoad);
+  </script>
+</body>
+</html>

@@ -10,9 +10,9 @@
 ---
 
 ## Resumen de Progreso Actual
-- **Fase Actual:** Fase 3 (Frontend "Dark Telemetry Glass") — **EN PROGRESO**
-- **Último Commit Verificado:** 48b72ac (Fase 2)
-- **Estado del Verificador:** APTO (Fase 2) — Pendiente Fase 3
+- **Fase Actual:** Fase 4 (Docker Endurecido, CI/CD, Documentación) — **EN PROGRESO**
+- **Último Commit Verificado:** 65d543a (Fase 3)
+- **Estado del Verificador:** APTO (Fase 3) — Pendiente Fase 4
 - **Bloqueos / Dudas para Santiago:** Ninguno
 
 ---
@@ -52,14 +52,14 @@
 - [x] **2.4. [GATE]** Invocado al subagente **`verificador`** sobre la Fase 2. Veredicto: **APTO** — compilación OK, 25/25 tests en verde, mutación detectada, CORS/ETag/RateLimit/No-Exposición validados.
 
 ### FASE 3: Frontend "Dark Telemetry Glass" (`wwwroot/index.html`) y Verificación Visual
-- [ ] **3.1.** Construir `src/Pulso.Api/wwwroot/index.html` usando los skills `impeccable`, `Superdesign`, `frontend-design`, `emil-design-eng` y `animate` siguiendo al pie de la letra `CONTEXTO-FRONTEND.md` y el mockup de referencia:
+- [x] **3.1.** Construir `src/Pulso.Api/wwwroot/index.html` usando los skills `impeccable`, `Superdesign`, `frontend-design`, `emil-design-eng` y `animate` siguiendo al pie de la letra `CONTEXTO-FRONTEND.md` y el mockup de referencia:
   - Sidebar izquierda fija con íconos SVG y modales informativos de Consola SSE y Arquitectura.
   - Header superior con `PULSO API / Status Dashboard`, píldora global `Sistemas Operativos` y las 3 tarjetas KPI (`Uptime 24h`, `Uptime 7d`, `Caché Hit Ratio`) con `tabular-nums`.
   - Tabla de 5 servicios con píldoras (`ONLINE`, `UP`, `FALLO DE TÚNEL`, `DESCONECTADO`) y las 24 barritas verticales de uptime (`0h`, `12h`, `24h`).
   - Panel de Laboratorio dividido en 2: Gráfico SVG Bezier en vivo (`p50` cian y `p95` violeta) + Gauge semicircular `100%`, barra `Hit Ratio`, badge `Stale-While-Revalidate activo` y el botón ámbar **`SIMULAR CAÍDA (Servicio de Prueba)`**.
   - Panel derecho `Endpoints de la API (v1)` interactivo + candado verde `CORS: s-portfolio.bbasolutions.ar`.
-- [ ] **3.2.** Levantar la aplicación localmente y verificarla con los MCPs `playwright` y `chrome-devtools` + skill `break-ui` (comprobar que hay 0 errores en consola, que el SSE actualiza la gráfica y que el clic en `SIMULAR CAÍDA` cambia los badges a naranja/rojo en vivo).
-- [ ] **3.3. [GATE]** Invocar al subagente **`verificador`** sobre la Fase 3. Solo avanzar si devuelve **APTO**.
+- [x] **3.2.** Levantar la aplicación localmente y verificarla con los MCPs `playwright` y `chrome-devtools` + skill `break-ui` (comprobar que hay 0 errores en consola, que el SSE actualiza la gráfica y que el clic en `SIMULAR CAÍDA` cambia los badges a naranja/rojo en vivo).
+- [x] **3.3. [GATE]** Invocar al subagente **`verificador`** sobre la Fase 3. Solo avanzar si devuelve **APTO**. Veredicto: **APTO** — 25/25 tests, 11/12 checks Playwright PASS (2 "fallos" = simulación activa, comportamiento correcto), 0 leaks internos, 0 CDNs, fidelidad visual completa.
 
 ### FASE 4: Docker Endurecido, CI/CD, Documentación de Portafolio e Integración
 - [ ] **4.1.** Crear `Dockerfile` multi-etapa (SDK 10 -> Runtime Alpine non-root `1654`), `docker-compose.yml` endurecido (`read_only: true`, `cap_drop: ALL`, `mem_limit: 192m`, puerto `127.0.0.1:5002:8080`, red `arch-net`) y `.env.example`.
@@ -78,3 +78,4 @@
 | 13/11/2026 | Fase 0 | 773ac30 | APTO | Fase 0 completa: solución .NET 10, SQLite WAL, HybridCache, 6 tests de producción, ADRs. Próximo: Fase 1 (MonitorWorker, LabStateService, Polly). |
 | 14/11/2026 | Fase 1 | 538b965 | APTO | Fase 1 completa: Motor Doble Vía (MonitorWorker + LabStateService), Polly resilience, HybridCache, 14 tests Fase 1. Próximo: Fase 2 (Endpoints Minimal API, CORS, Rate Limit, SSE). |
 | 14/11/2026 | Fase 2 | 48b72ac | APTO | Fase 2 completa: Endpoints Minimal API (/summary, /services, /stream SSE, /lab/simulate-failure, /health), Seguridad (CORS estricto, Rate Limiting por CF-Connecting-IP, Headers, ProblemDetails), 5 tests integración + 20 tests unitarios = 25/25 verde. Próximo: Fase 3 (Frontend Dark Telemetry Glass). |
+| 14/11/2026 | Fase 3 | 65d543a | APTO | Fase 3 completa: Frontend "Dark Telemetry Glass" (wwwroot/index.html 1000+ líneas, CSS variables exactas, 5 servicios, 24 barras uptime, gráfico SVG p50/p95, gauge semicircular, hit ratio, stale badge, SIMULAR CAÍDA 45s, endpoints panel, modales Consola/Arquitectura, tabular-nums, prefers-reduced-motion, ARIA, 0 CDNs, 0 leaks internos). Verificador: 25/25 tests, 11/12 Playwright PASS, mutación 2/3 detectada (gap menor en CircuitBreakerState SSE). Próximo: Fase 4 (Docker, CI/CD, Documentación). |
