@@ -28,7 +28,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-          cache: true
 
       - name: Restore dependencies
         run: dotnet restore Pulso.slnx
@@ -62,6 +61,7 @@ jobs:
         with:
           languages: csharp
           queries: +security-and-quality
+          build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
