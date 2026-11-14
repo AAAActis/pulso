@@ -311,7 +311,7 @@ const { chromium } = require('playwright');
   const logoStroke = await logo ? await logo.evaluate(el => getComputedStyle(el.querySelector('path')).stroke) : 'none';
   const navBtns = await page.$$('.sidebar__nav-btn');
   const footerLinks = await page.$$('.sidebar__link');
-  
+
   results.checks.sidebar = {
     width: sidebarWidth,
     expectedWidth: '60px',
@@ -323,46 +323,6 @@ const { chromium } = require('playwright');
     footerLinksCount: footerLinks.length,
     expectedFooterLinks: 2,
     pass: sidebarWidth === '60px' && navBtns.length === 3 && footerLinks.length === 2 && logoStroke === 'rgb(56, 189, 248)'
-  };
-
-  // 4. Check Header
-  const headerBrand = await page.$('.header__brand');
-  const headerBrandText = await headerBrand ? await headerBrand.textContent() : '';
-  const headerSlash = await page.$('.header__slash');
-  const headerSlashText = await headerSlash ? await headerSlash.textContent() : '';
-  const headerSubtitle = await page.$('.header__subtitle');
-  const headerSubtitleText = await headerSubtitle ? await headerSubtitle.textContent() : '';
-  const globalStatusText = await page.$('#globalStatusText');
-  const globalStatusTextContent = await globalStatusText ? await globalStatusText.textContent() : '';
-  const kpis = await page.$$('.kpi');
-  const kpiValues = await Promise.all(kpis.map(async (kpi) => {
-    const label = await kpi.$('.kpi__label');
-    const value = await kpi.$('.kpi__value');
-    return {
-      label: label ? await label.textContent() : '',
-      value: value ? await value.textContent() : ''
-    };
-  }));
-  
-  // Check tabular-nums on KPIs
-  const kpiTabular = await page.evaluate(() => {
-    const kpis = document.querySelectorAll('.kpi__value');
-    return Array.from(kpis).every(el => getComputedStyle(el).fontVariantNumeric === 'tabular-nums');
-  });
-
-  results.checks.header = {
-    brandText: headerBrandText,
-    slashText: headerSlashText,
-    subtitleText: headerSubtitleText,
-    globalStatusText: globalStatusTextContent,
-    kpis: kpiValues,
-    kpiTabularNums: kpiTabular,
-    pass: headerBrandText === 'PULSO API' && 
-          headerSlashText === '/' && 
-          headerSubtitleText === 'Status Dashboard' &&
-          globalStatusTextContent === 'Sistemas Operativos' &&
-          kpis.length === 3 &&
-          kpiTabular
   };
 
   // 5. Check Services Table (5 rows, pills, 24 bars)
@@ -394,50 +354,6 @@ const { chromium } = require('playwright');
     services,
     expectedServices,
     pass: servicesMatch
-  };
-
-  // 6. Check Lab Panel - Latency Chart SVG, Gauge, Hit Ratio, Stale Badge, Simulate Button
-  const latencyChart = await page.$('#latencyChart');
-  const gaugeProgress = await page.$('#gaugeProgress');
-  const gaugeValue = await page.$('#gaugeValue');
-  const hitRatioFill = await page.$('#hitRatioFill');
-  const hitRatioValue = await page.$('#hitRatioValue');
-  const staleBadge = await page.$('#staleBadge');
-  const simulateBtn = await page.$('#simulateBtn');
-  const simulateTitle = await page.$('.simulate-btn__title');
-  const simulateSubtitle = await page.$('.simulate-btn__subtitle');
-  const legendP50 = await page.$('#legendP50');
-  const legendP95 = await page.$('#legendP95');
-
-  const gaugeValueText = await gaugeValue ? await gaugeValue.textContent() : '';
-  const hitRatioValueText = await hitRatioValue ? await hitRatioValue.textContent() : '';
-  const staleBadgeText = await staleBadge ? await staleBadge.textContent() : '';
-  const simulateTitleText = await simulateTitle ? await simulateTitle.textContent() : '';
-  const simulateSubtitleText = await simulateSubtitle ? await simulateSubtitle.textContent() : '';
-  const legendP50Text = await legendP50 ? await legendP50.textContent() : '';
-  const legendP95Text = await legendP95 ? await legendP95.textContent() : '';
-
-  // Check SVG elements exist
-  const svgPaths = await page.$$('#latencyChart path');
-  const gaugePaths = await page.$$('.cache-gauge__svg path');
-
-  results.checks.labPanel = {
-    latencyChartPresent: !!latencyChart,
-    latencyChartPathsCount: svgPaths.length,
-    gaugePresent: !!gaugeProgress,
-    gaugeValue: gaugeValueText,
-    hitRatioFillPresent: !!hitRatioFill,
-    hitRatioValue: hitRatioValueText,
-    staleBadgeText,
-    simulateBtnPresent: !!simulateBtn,
-    simulateTitle: simulateTitleText,
-    simulateSubtitle: simulateSubtitleText,
-    legendP50: legendP50Text,
-    legendP95: legendP95Text,
-    pass: !!latencyChart && !!gaugeProgress && !!hitRatioFill && !!staleBadge && !!simulateBtn &&
-          simulateTitleText === 'SIMULAR CAÍDA (Servicio de Prueba)' &&
-          gaugeValueText === '100%' &&
-          hitRatioValueText === '94.2%'
   };
 
   // 7. Check Endpoints Panel

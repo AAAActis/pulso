@@ -533,7 +533,7 @@
     .latency-chart {
       flex: 1;
       position: relative;
-      height: 260px;
+      height: 130px; /* max height per spec */
     }
 
     .latency-chart__legend {
@@ -577,10 +577,13 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      flex-wrap: nowrap;
     }
 
     .cache-gauge__svg {
       flex-shrink: 0;
+      width: 90px;
+      height: 55px;
     }
 
     .cache-gauge__details {
@@ -588,6 +591,7 @@
       flex-direction: column;
       gap: 12px;
       flex: 1;
+      min-width: 0;
     }
 
     .cache-gauge__hit-ratio {
@@ -1295,7 +1299,7 @@
             <span class="lab-section__title">Estadísticas de la caché híbrida de .NET (Memoria + Redis)</span>
             <div class="cache-stats">
               <div class="cache-gauge">
-                <svg class="cache-gauge__svg" viewBox="0 0 120 60" aria-label="Disponibilidad de caché 100%">
+                <svg class="cache-gauge__svg" viewBox="0 0 120 60" aria-label="Disponibilidad de caché 100%" style="width: 90px; height: 55px; flex-shrink: 0;">
                   <defs>
                     <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stop-color="#38bdf8"/>
@@ -1527,8 +1531,8 @@
     function renderLatencyChart() {
       const svg = els.latencyChart;
       const width = svg.clientWidth || 500;
-      const height = svg.clientHeight || 260;
-      const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+      const height = 130; // Fixed max height
+      const padding = { top: 16, right: 20, bottom: 32, left: 48 };
       const chartWidth = width - padding.left - padding.right;
       const chartHeight = height - padding.top - padding.bottom;
 
@@ -1538,20 +1542,26 @@
       const maxVal = Math.max(...allData, 100);
       const minVal = 0;
 
-      const xScale = (i) => padding.left + (i / (state.maxHistoryPoints - 1)) * chartWidth;
+      const xScale = (i, dataLen) => padding.left + (i / Math.max(1, dataLen - 1)) * chartWidth;
       const yScale = (val) => padding.top + chartHeight - ((val - minVal) / (maxVal - minVal)) * chartHeight;
 
-      // Generate path for p50
-      const p50Path = p50Data.length > 1
-        ? 'M' + p50Data.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')
-            .replace(/ (\d+\.?\d*),/g, ' C$1,') // Simple curve approximation
-            .replace('M', 'M') + ' '
-        : '';
+      // Generate smooth cubic bezier path for a dataset
+      function smoothPath(data) {
+        if (data.length < 2) return '';
+        let path = `M${xScale(0, data.length)},${yScale(data[0])}`;
+        for (let i = 1; i < data.length; i++) {
+          const x0 = xScale(i - 1, data.length);
+          const y0 = yScale(data[i - 1]);
+          const x1 = xScale(i, data.length);
+          const y1 = yScale(data[i]);
+          const cx = (x0 + x1) / 2;
+          path += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`;
+        }
+        return path;
+      }
 
-      // Generate path for p95
-      const p95Path = p95Data.length > 1
-        ? 'M' + p95Data.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')
-        : '';
+      const p50Path = smoothPath(p50Data);
+      const p95Path = smoothPath(p95Data);
 
       // Build SVG with gradients and areas
       svg.innerHTML = `
@@ -1582,15 +1592,15 @@
           <text x="${padding.left - 8}" y="${padding.top + chartHeight * i * 0.25 + 4}" text-anchor="end" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" class="tabular-nums">${Math.round(v)}</text>
         `).join('')}
         <!-- X axis labels -->
-        <text x="${padding.left}" y="${height - 8}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">0s</text>
-        <text x="${width - padding.right - 20}" y="${height - 8}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" text-anchor="end">ahora</text>
+        <text x="${padding.left}" y="${height - 6}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">0s</text>
+        <text x="${width - padding.right - 20}" y="${height - 6}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" text-anchor="end">ahora</text>
         <!-- p95 Area -->
         ${p95Data.length > 1 ? `
-          <path d="${p95Path} L${xScale(p95Data.length-1)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p95AreaGrad)"/>
+          <path d="${p95Path} L${xScale(p95Data.length-1, p95Data.length)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p95AreaGrad)"/>
         ` : ''}
         <!-- p50 Area -->
         ${p50Data.length > 1 ? `
-          <path d="${p50Path} L${xScale(p50Data.length-1)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p50AreaGrad)"/>
+          <path d="${p50Path} L${xScale(p50Data.length-1, p50Data.length)},${padding.top + chartHeight} L${padding.left},${padding.top + chartHeight} Z" fill="url(#p50AreaGrad)"/>
         ` : ''}
         <!-- p95 Line -->
         ${p95Data.length > 1 ? `
@@ -1602,10 +1612,10 @@
         ` : ''}
         <!-- Current value dots -->
         ${p50Data.length ? `
-          <circle cx="${xScale(p50Data.length-1)}" cy="${yScale(p50Data[p50Data.length-1])}" r="4" fill="var(--chart-p50)" stroke="var(--bg-card)" stroke-width="2"/>
+          <circle cx="${xScale(p50Data.length-1, p50Data.length)}" cy="${yScale(p50Data[p50Data.length-1])}" r="4" fill="var(--chart-p50)" stroke="var(--bg-card)" stroke-width="2"/>
         ` : ''}
         ${p95Data.length ? `
-          <circle cx="${xScale(p95Data.length-1)}" cy="${yScale(p95Data[p95Data.length-1])}" r="4" fill="var(--chart-p95)" stroke="var(--bg-card)" stroke-width="2"/>
+          <circle cx="${xScale(p95Data.length-1, p95Data.length)}" cy="${yScale(p95Data[p95Data.length-1])}" r="4" fill="var(--chart-p95)" stroke="var(--bg-card)" stroke-width="2"/>
         ` : ''}
       `;
     }
@@ -1631,26 +1641,25 @@
       const isSimulating = state.simulationActive === true || (state.lab && state.lab.simulationActive === true);
 
       els.servicesBody.innerHTML = state.services.map(svc => {
-        const internalBadgeClass = getStatusBadgeClass(svc.internalStatus === 'UP', svc.publicStatus);
-        const publicBadgeClass = getPublicBadgeClass(svc.publicStatus);
         const displayName = nameMap[svc.name] || svc.name;
 
-        // Apply simulation overrides for visual feedback
+        // Apply simulation overrides for visual feedback FIRST
         let internalStatus = svc.internalStatus;
         let publicStatus = svc.publicStatus;
-        let pubBadgeClass = publicBadgeClass;
 
         if (isSimulating) {
           if (svc.id === 'demo-service') {
             internalStatus = 'DOWN';
             publicStatus = 'DESCONECTADO';
-            pubBadgeClass = 'status-badge status-badge--down';
           } else if (svc.id === 'api-gateway') {
             internalStatus = 'UP';
             publicStatus = 'FALLO DE TÚNEL';
-            pubBadgeClass = 'status-badge status-badge--tunnel';
           }
         }
+
+        // Compute badge classes AFTER overrides
+        const internalBadgeClass = getStatusBadgeClass(internalStatus === 'UP', publicStatus);
+        const publicBadgeClass = getPublicBadgeClass(publicStatus);
 
         // Build uptime bars
         const bars = (svc.bars24h || []).map((bar, i) => {
@@ -1668,7 +1677,7 @@
           <tr>
             <td><span class="service-name">${displayName}</span></td>
             <td><span class="status-badge ${internalBadgeClass}">${internalStatus}</span></td>
-            <td><span class="status-badge ${pubBadgeClass}">${publicStatus}</span></td>
+            <td><span class="status-badge ${publicBadgeClass}">${publicStatus}</span></td>
             <td>
               <div class="uptime-bars" role="img" aria-label="Uptime últimas 24 horas">${bars}</div>
               <div class="uptime-labels"><span>0h</span><span>12h</span><span>24h</span></div>
