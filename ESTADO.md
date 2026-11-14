@@ -10,9 +10,9 @@
 ---
 
 ## Resumen de Progreso Actual
-- **Fase Actual:** Fase 2 (Endpoints Minimal API, Seguridad y SSE) — **COMPLETADA**
-- **Último Commit Verificado:** Fase 2 completada
-- **Estado del Verificador:** APTO (Fase 2)
+- **Fase Actual:** Fase 3 (Frontend "Dark Telemetry Glass") — **EN PROGRESO**
+- **Último Commit Verificado:** 48b72ac (Fase 2)
+- **Estado del Verificador:** APTO (Fase 2) — Pendiente Fase 3
 - **Bloqueos / Dudas para Santiago:** Ninguno
 
 ---
@@ -77,4 +77,4 @@
 | 13/11/2026 | Inicialización | - | - | Creados archivos de contexto y `ESTADO.md`. Listo para arrancar Fase 0. |
 | 13/11/2026 | Fase 0 | 773ac30 | APTO | Fase 0 completa: solución .NET 10, SQLite WAL, HybridCache, 6 tests de producción, ADRs. Próximo: Fase 1 (MonitorWorker, LabStateService, Polly). |
 | 14/11/2026 | Fase 1 | 538b965 | APTO | Fase 1 completa: Motor Doble Vía (MonitorWorker + LabStateService), Polly resilience, HybridCache, 14 tests Fase 1. Próximo: Fase 2 (Endpoints Minimal API, CORS, Rate Limit, SSE). |
-| 14/11/2026 | Fase 2 | (pendiente) | APTO | Fase 2 completa: Endpoints Minimal API (/summary, /services, /stream SSE, /lab/simulate-failure, /health), Seguridad (CORS estricto, Rate Limiting por CF-Connecting-IP, Headers, ProblemDetails), 5 tests integración + 20 tests unitarios = 25/25 verde. Próximo: Fase 3 (Frontend Dark Telemetry Glass). |
+| 14/11/2026 | Fase 2 | 48b72ac | APTO | Fase 2 completa: Endpoints Minimal API (/summary, /services, /stream SSE, /lab/simulate-failure, /health), Seguridad (CORS estricto, Rate Limiting por CF-Connecting-IP, Headers, ProblemDetails), 5 tests integración + 20 tests unitarios = 25/25 verde. Próximo: Fase 3 (Frontend Dark Telemetry Glass). |
