@@ -451,18 +451,18 @@
 
     .uptime-bars {
       display: flex;
-      align-items: flex-end;
+      width: 100%;
       gap: 3px;
-      height: 22px;
+      height: 18px;
       margin-bottom: 4px;
     }
 
     .uptime-bar {
-      width: 5px;
+      flex: 1;
+      height: 18px;
       border-radius: 2px;
       background: var(--status-green);
-      transition: height var(--duration-normal) var(--ease-out), background var(--duration-fast) var(--ease-out);
-      flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-out);
     }
 
     .uptime-bar--warn {
@@ -1279,7 +1279,7 @@
           <!-- Latency Chart -->
           <div class="lab-section">
             <span class="lab-section__title">Gráficos de latencia en tiempo real</span>
-            <div class="latency-chart" role="img" aria-label="Gráfico de latencia p50 y p95 en tiempo real">
+            <div class="latency-chart" role="img" aria-label="Gráfico de latencia p50 y p95 en tiempo real" style="max-height: 120px; display: block; overflow: hidden;">
               <div class="latency-chart__legend">
                 <span class="latency-chart__legend-item">
                   <span class="latency-chart__legend-color latency-chart__legend-color--p50" aria-hidden="true"></span>
@@ -1290,7 +1290,7 @@
                   <span>— p95 (<span id="legendP95" class="tabular-nums">45</span>ms)</span>
                 </span>
               </div>
-              <svg class="latency-chart__svg" id="latencyChart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <svg class="latency-chart__svg" id="latencyChart" viewBox="0 0 420 120" width="100%" height="120" preserveAspectRatio="none" aria-hidden="true"></svg>
             </div>
           </div>
 
@@ -1589,7 +1589,7 @@
         `).join('')}
         <!-- Y axis labels -->
         ${[maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25, 0].map((v, i) => `
-          <text x="${padding.left - 8}" y="${padding.top + chartHeight * i * 0.25 + 4}" text-anchor="end" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)" class="tabular-nums">${Math.round(v)}</text>
+          <text x="${padding.left - 8}" y="${padding.top + chartHeight * i * 0.25 + 4}" text-anchor="end" font-family="var(--font-mono)" style="font-size: 10px; fill: #64748b;" class="tabular-nums">${Math.round(v)}</text>
         `).join('')}
         <!-- X axis labels -->
         <text x="${padding.left}" y="${height - 6}" font-family="var(--font-mono)" font-size="9" fill="var(--text-muted)">0s</text>
@@ -1664,13 +1664,10 @@
         // Build uptime bars
         const bars = (svc.bars24h || []).map((bar, i) => {
           let barClass = 'uptime-bar';
-          let height = '22px';
           if (bar === 'warn') barClass += ' uptime-bar--warn';
           else if (bar === 'down') barClass += ' uptime-bar--down';
           else if (bar === 'dimmed') barClass += ' uptime-bar--dimmed';
-          // Vary heights slightly for visual interest on OK bars
-          if (bar === 'ok') height = `${16 + Math.sin(i * 0.8) * 6}px`;
-          return `<div class="${barClass}" style="height: ${height}" title="${i}h: ${bar}"></div>`;
+          return `<div class="${barClass}" style="flex: 1; height: 18px; border-radius: 2px;" title="${i}h: ${bar}"></div>`;
         }).join('');
 
         return `
