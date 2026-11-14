@@ -28,14 +28,14 @@
 - [x] **0.6. [GATE]** Invocado al subagente **`verificador`** sobre la Fase 0. Veredicto: **APTO** — compilación OK, 6/6 tests en verde, mutación detectada (uptime 80% → 100% falla), sin filtraciones internas, ADRs creados.
 
 ### FASE 1: Motor de Monitoreo "Doble Vía", Resiliencia (Polly) y Laboratorio
-- [ ] **1.1.** Crear `src/Pulso.Api/LabStateService.cs` (Singleton thread-safe) que gestione:
+- [x] **1.1.** Crear `src/Pulso.Api/LabStateService.cs` (Singleton thread-safe) que gestione:
   - Ring-buffer de las últimas 30 mediciones de latencia de la API (cálculo real de `p50` y `p95`).
   - Contadores de `CacheHits`, `CacheMisses`, `HitRatioPercent` y flag `StaleWhileRevalidateActive`.
   - Estado de simulación de caída (`SimulateFailureUntil`, estado del Circuit Breaker) que dura 45 segundos y se restaura solo.
-- [ ] **1.2.** Crear `src/Pulso.Api/MonitorWorker.cs` (`BackgroundService` con `PeriodicTimer` de 60s y semilla inicial al arrancar) que ejecute el chequeo **Doble Vía** (Red Interna Docker vs URL Pública Cloudflare) para los 5 servicios (`nutrition-app`, `n8n-automation`, `santiago-portfolio`, `api-gateway`, `demo-service`).
-- [ ] **1.3.** Configurar Polly v8 (`Microsoft.Extensions.Http.Resilience`) con Timeout (3s), Retry con Jitter y Circuit Breaker en el cliente HTTP, más fallback de `HybridCache` (sirviendo datos Stale si el servicio simulado `demo-service` falla).
-- [ ] **1.4.** Escribir tests en `Pulso.Tests` que prueben la lógica de estados (`ONLINE`/`UP`, `FALLO DE TÚNEL` cuando interno=OK y público=FAIL, y `DESCONECTADO` cuando se activa la simulación).
-- [ ] **1.5. [GATE]** Invocar al subagente **`verificador`** sobre la Fase 1. Solo avanzar si devuelve **APTO**.
+- [x] **1.2.** Crear `src/Pulso.Api/MonitorWorker.cs` (`BackgroundService` con `PeriodicTimer` de 60s y semilla inicial al arrancar) que ejecute el chequeo **Doble Vía** (Red Interna Docker vs URL Pública Cloudflare) para los 5 servicios (`nutrition-app`, `n8n-automation`, `santiago-portfolio`, `api-gateway`, `demo-service`).
+- [x] **1.3.** Configurar Polly v8 (`Microsoft.Extensions.Http.Resilience`) con Timeout (3s), Retry con Jitter (200ms) y Circuit Breaker en el cliente HTTP `monitor`, más fallback de `HybridCache` (L1 15s + L2 Redis 60s).
+- [x] **1.4.** Escribir tests en `Pulso.Tests`: 7 tests `LabStateServiceTests` (ring-buffer percentiles, cache hit ratio, simulación caída 45s, circuit breaker, stale-while-revalidate) + 5 tests `MonitorLogicTests` (4 combinaciones estado: UP/FALLO DE TÚNEL/DESCONECTADO, ServiceIds, CheckResult).
+- [x] **1.5. [GATE]** Invocado al subagente **`verificador`** sobre la Fase 1. Veredicto: **APTO** — compilación OK, 20/20 tests en verde, mutación detectada (p95 0.95→0.50 falla, HitRatio precisión 1→2 decimales falla), sin filtraciones internas, código Fase 1 completo.
 
 ### FASE 2: Endpoints Minimal API, Seguridad (CORS, Rate Limit, Headers) y SSE
 - [ ] **2.1.** Implementar en `src/Pulso.Api/Program.cs`:
@@ -75,4 +75,4 @@
 | Fecha | Fase Completada | Commit Hash | Veredicto del Verificador | Notas / Qué falta hacer en la próxima sesión |
 |---|---|---|---|---|
 | 13/11/2026 | Inicialización | - | - | Creados archivos de contexto y `ESTADO.md`. Listo para arrancar Fase 0. |
-| 13/11/2026 | Fase 0 | pendiente | APTO | Fase 0 completa: solución .NET 10, SQLite WAL, HybridCache, 6 tests de producción, ADRs. Próximo: Fase 1 (MonitorWorker, LabStateService, Polly). |
+| 13/11/2026 | Fase 0 | 773ac30 | APTO | Fase 0 completa: solución .NET 10, SQLite WAL, HybridCache, 6 tests de producción, ADRs. Próximo: Fase 1 (MonitorWorker, LabStateService, Polly). |
