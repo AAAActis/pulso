@@ -10,9 +10,9 @@
 ---
 
 ## Resumen de Progreso Actual
-- **Fase Actual:** Fase 1 (Motor de Monitoreo "Doble Vía", Resiliencia y Laboratorio)
-- **Último Commit Verificado:** Fase 0 completada
-- **Estado del Verificador:** APTO (Fase 0)
+- **Fase Actual:** Fase 2 (Endpoints Minimal API, Seguridad y SSE) — **COMPLETADA**
+- **Último Commit Verificado:** Fase 2 completada
+- **Estado del Verificador:** APTO (Fase 2)
 - **Bloqueos / Dudas para Santiago:** Ninguno
 
 ---
@@ -38,18 +38,18 @@
 - [x] **1.5. [GATE]** Invocado al subagente **`verificador`** sobre la Fase 1. Veredicto: **APTO** — compilación OK, 20/20 tests en verde, mutación detectada (p95 0.95→0.50 falla, HitRatio precisión 1→2 decimales falla), sin filtraciones internas, código Fase 1 completo.
 
 ### FASE 2: Endpoints Minimal API, Seguridad (CORS, Rate Limit, Headers) y SSE
-- [ ] **2.1.** Implementar en `src/Pulso.Api/Program.cs`:
+- [x] **2.1.** Implementar en `src/Pulso.Api/Program.cs`:
   - Middleware de medición de latencia real alimentando a `LabStateService`.
   - Cabeceras de seguridad obligatorias (`CSP`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`) y manejo de errores `ProblemDetails` (RFC 9457).
   - CORS estricto: permitir únicamente `https://s-portfolio.bbasolutions.ar` (y `localhost` solo en Development).
   - Rate Limiting por IP real leyendo `CF-Connecting-IP` (máx. 5 req/min en `/api/v1/lab/simulate-failure` y 60 req/min global).
-- [ ] **2.2.** Exponer los endpoints `/api/v1/summary` (con soporte de `ETag` y respuesta `304 Not Modified`), `/api/v1/services`, `/api/v1/stream` (SSE cada 3 segundos y push inmediato al simular caída), `/api/v1/lab/simulate-failure`, `/health/live` y `/health/ready`.
-- [ ] **2.3.** Escribir tests de integración con `WebApplicationFactory` en `Pulso.Tests`:
+- [x] **2.2.** Exponer los endpoints `/api/v1/summary` (con soporte de `ETag` y respuesta `304 Not Modified`), `/api/v1/services`, `/api/v1/stream` (SSE cada 3 segundos y push inmediato al simular caída), `/api/v1/lab/simulate-failure`, `/health/live` y `/health/ready`.
+- [x] **2.3.** Escribir tests de integración con `WebApplicationFactory` en `Pulso.Tests`:
   - Test de CORS (origen permitido vs origen prohibido `https://evil.com`).
   - Test de `ETag` / `If-None-Match` devolviendo `304`.
   - Test de Rate Limiting devolviendo `429 Too Many Requests` en `/lab/simulate-failure`.
   - Test de No-Exposición (verificar que el JSON de `/services` jamás contenga nombres de contenedores como `nutricion-api` ni puertos como `:8080` o `:5678`).
-- [ ] **2.4. [GATE]** Invocar al subagente **`verificador`** sobre la Fase 2. Solo avanzar si devuelve **APTO**.
+- [x] **2.4. [GATE]** Invocado al subagente **`verificador`** sobre la Fase 2. Veredicto: **APTO** — compilación OK, 25/25 tests en verde, mutación detectada, CORS/ETag/RateLimit/No-Exposición validados.
 
 ### FASE 3: Frontend "Dark Telemetry Glass" (`wwwroot/index.html`) y Verificación Visual
 - [ ] **3.1.** Construir `src/Pulso.Api/wwwroot/index.html` usando los skills `impeccable`, `Superdesign`, `frontend-design`, `emil-design-eng` y `animate` siguiendo al pie de la letra `CONTEXTO-FRONTEND.md` y el mockup de referencia:
@@ -77,3 +77,4 @@
 | 13/11/2026 | Inicialización | - | - | Creados archivos de contexto y `ESTADO.md`. Listo para arrancar Fase 0. |
 | 13/11/2026 | Fase 0 | 773ac30 | APTO | Fase 0 completa: solución .NET 10, SQLite WAL, HybridCache, 6 tests de producción, ADRs. Próximo: Fase 1 (MonitorWorker, LabStateService, Polly). |
 | 14/11/2026 | Fase 1 | 538b965 | APTO | Fase 1 completa: Motor Doble Vía (MonitorWorker + LabStateService), Polly resilience, HybridCache, 14 tests Fase 1. Próximo: Fase 2 (Endpoints Minimal API, CORS, Rate Limit, SSE). |
+| 14/11/2026 | Fase 2 | (pendiente) | APTO | Fase 2 completa: Endpoints Minimal API (/summary, /services, /stream SSE, /lab/simulate-failure, /health), Seguridad (CORS estricto, Rate Limiting por CF-Connecting-IP, Headers, ProblemDetails), 5 tests integración + 20 tests unitarios = 25/25 verde. Próximo: Fase 3 (Frontend Dark Telemetry Glass). |

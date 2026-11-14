@@ -35,6 +35,9 @@ public class DatabaseTests : IAsyncLifetime
         var shmFile = _testDbPath + "-shm";
         if (File.Exists(walFile)) { try { File.Delete(walFile); } catch { } }
         if (File.Exists(shmFile)) { try { File.Delete(shmFile); } catch { } }
+
+        // Reset connection string to default to not interfere with other tests
+        Database.SetConnectionStringForTesting("Data Source=./data/pulso.db;Cache=Shared;Pooling=true;");
     }
 
     [Fact]
