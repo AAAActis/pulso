@@ -1,0 +1,59 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Database
+data/pulso.db
+data/pulso.db-wal
+data/pulso.db-shm
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+.docker/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
