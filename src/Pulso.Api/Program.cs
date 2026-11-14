@@ -652,6 +652,11 @@ app.MapPost("/api/v1/lab/simulate-failure", async (SimulateFailureRequest req, H
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Configure database connection string from configuration (for Docker /data mount)
+var config = app.Services.GetRequiredService<IConfiguration>();
+var dbPath = config.GetConnectionString("Default") ?? "Data Source=./data/pulso.db;Cache=Shared;Pooling=true;";
+Database.SetConnectionStringForTesting(dbPath);
+
 await Database.InitializeAsync(app.Lifetime.ApplicationStopping);
 
 await app.RunAsync();
